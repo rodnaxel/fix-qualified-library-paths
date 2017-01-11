@@ -1,0 +1,67 @@
+#!/bin/bash
+#This script is ugly, feel free to fix it
+
+#This script is ugly, feel free to fix it
+
+if [ "$#" -ne 2 ]; then
+echo "usage ./cmd target-rootfs path-to-target-toolchain-compiler"
+exit -1
+fi
+
+#passed args
+ROOTFS=$1
+TOOLCHAIN=$2
+
+if [ -x $TOOLCHAIN ]; then
+echo "Passed valid tool"
+MACHINE=$($TOOLCHAIN -dumpmachine)
+DEB_MULTI_ARCH_MADNESS=$ROOTFS/usr/lib/$MACHINE
+
+fi
+
+INITIAL_DIR=$PWD
+
+function adjustSymLinks1
+{
+echo "Adjusting the symlinks in $1 to be relative"
+
+cd $1
+echo $PWD   
+find . -maxdepth 1 -type l | while read i;
+do qualifies=$(file $i | grep broken)
+if [ -n "$qualifies" ]; then
+newPath=$(file $i | grep broken | grep /etc| sed 's/^.*to //');
+echo $i
+echo /mnt/rasp-pi-rootfs$newPath;
+sudo rm $i;
+sudo ln -s /mnt/rasp-pi-rootfs$newPath $i;
+fi
+done
+cd $INITIAL_DIR
+}
+
+echo "Testing for existence of potential debian multi-arch dir: $DEB_MULTI_ARCH_MADNESS"
+
+function adjustSymLinks2
+{
+echo "Adjusting the symlinks in $1 to be relative"
+
+cd $1
+echo $PWD   
+find . -maxdepth 1 -type l | while read i;
+do qualifies=$(file $i | grep broken | grep /lib/arm)
+if [ -n "$qualifies" ]; then
+newPath=$(file $i | grep broken | grep /lib/arm | sed 's/^.*to //');
+echo $i
+echo /mnt/rasp-pi-rootfs$newPath;
+sudo rm $i;
+sudo ln -s /mnt/rasp-pi-rootfs$newPath $i;
+fi
+done
+cd $INITIAL_DIR
+}
+
+if [ -n "$DEB_MULTI_ARCH_MADNESS" -a -e "$DEB_MULTI_ARCH_MADNESS" ]; then
+echo "Debian multiarch dir exists, adjusting"
+adjustSymLinks2 $DEB_MULTI_ARCH_MADNESS "../../.."
+fi
